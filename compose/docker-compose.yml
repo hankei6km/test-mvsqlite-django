@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    networks:
+      cluster:
+    depends_on:
+      app:
+        condition: service_started
+  app:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    hostname: app
+    user: root
+    volumes:
+      - ../mysite:/opt/mysite
+    tty: true
+    command: start
+    networks:
+      cluster:
+    depends_on:
+      db:
+        condition: service_healthy
+  db:
+    build:
+      context: ./db
+      dockerfile: Dockerfile
+    hostname: db
+    user: root
+    volumes:
+      - ../mysite:/opt/mysite
+    tty: true
+    command: start
+    networks:
+      cluster:
+        ipv4_address: 192.168.10.10
+    healthcheck:
+      test: ["CMD", "/docker-entrypoint.sh", "test"]
+      retries: 10
+  node:
+    build:
+      context: ./db
+      dockerfile: Dockerfile
+    hostname: node
+    user: root
+    tty: true
+    command: node
+    volumes:
+      - ../mysite:/opt/mysite
+    networks:
+      cluster:
+networks:
+  cluster:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 192.168.10.0/24
